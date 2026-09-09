@@ -24,8 +24,8 @@ export const KycSlotPage: React.FC<KycSlotPageProps> = ({
   const [isBooking, setIsBooking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const coApplicantName = state.coApplicant.name || 'Co-Applicant';
-  const coApplicantRelation = state.coApplicant.relation || 'Parent';
+  const coApplicantName = state.coApplicant?.name || 'Co-Applicant';
+  const coApplicantRelation = state.coApplicant?.relation || 'Parent';
 
   // Fetch slots from API
   useEffect(() => {

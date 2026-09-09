@@ -18,40 +18,23 @@ export const NxtWaveHeader: React.FC<HeaderProps> = ({
       <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* NxtWave Brand Identity */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0047BA] via-[#0B63E5] to-[#2575FC] flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="transform -rotate-6"
-              >
-                <path
-                  d="M4 14L10 6L14 12L20 4"
-                  stroke="currentColor"
-                  strokeWidth="2.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="20" cy="4" r="2" fill="white" />
-              </svg>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center tracking-tight">
-                <span className="text-xl font-black text-[#0A192F] tracking-tight font-sans">
-                  Nxt
-                </span>
-                <span className="text-xl font-black text-[#0B63E5] tracking-tight font-sans">
-                  Wave
-                </span>
-              </div>
-              <span className="text-[10px] font-medium tracking-wider text-slate-500 uppercase -mt-1">
-                Learner Enrollment
-              </span>
-            </div>
-          </div>
+          <a
+            href="/"
+            className="flex items-center gap-2 group transition-opacity hover:opacity-95"
+            aria-label="NxtWave Academy Portal"
+          >
+            <img
+              id="nxtwave-academy-header-logo"
+              src="/assets/nxtwave_academy_logo.png"
+              alt="NXT WAVE ACADEMY"
+              className="h-8 sm:h-9 w-auto max-w-[170px] sm:max-w-[190px] object-contain select-none"
+              referrerPolicy="no-referrer"
+            />
+          </a>
+          <div className="hidden sm:block h-6 w-px bg-slate-200" />
+          <span className="hidden sm:inline-block text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+            Enrollment Portal
+          </span>
         </div>
 
         {/* Right Info: Security & Support */}

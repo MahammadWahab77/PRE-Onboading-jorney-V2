@@ -1,0 +1,10 @@
+name = "pre-onboarding-journey"
+compatibility_date = "2026-09-08"
+compatibility_flags = ["nodejs_compat"]
+
+pages_build_output_dir = "dist"
+
+[vars]
+DATA_SOURCE = "salesforce"
+SUPABASE_URL = "https://jqxmyxuagerayrgvxjwg.supabase.co"
+SF_LOGIN_URL = "https://computing-ability-6555.my.salesforce.com"
