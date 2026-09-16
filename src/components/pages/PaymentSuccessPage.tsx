@@ -143,7 +143,7 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
               <div className="bg-slate-50 p-4 rounded-xl space-y-2.5 text-xs text-slate-600 mb-5 font-mono">
                 <div className="flex justify-between">
                   <span>Learner:</span>
-                  <span className="font-bold text-slate-900">{state.learner.name || 'Rahul Kumar'}</span>
+                  <span className="font-bold text-slate-900">{state.learner.name || 'Learner'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Program:</span>

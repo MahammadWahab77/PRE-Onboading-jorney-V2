@@ -13,6 +13,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import type { EnrollmentState } from '../../types';
+import { getFullPaymentInfo } from '../../utils/paymentLinks';
 
 interface PaymentLinkPageProps {
   state: EnrollmentState;
@@ -33,13 +34,15 @@ export const PaymentLinkPage: React.FC<PaymentLinkPageProps> = ({
   const [mobileSent, setMobileSent] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  const fullPaymentInfo = getFullPaymentInfo(state.program?.name);
+  const isFullPayment = state.payment.selectedMethod === 'FULL_PAYMENT' || !state.payment.selectedMethod;
   const amount = state.program.amountPayable || 100000;
   const formattedAmount = `₹${amount.toLocaleString('en-IN')}`;
   const methodLabel =
     state.payment.selectedMethod === 'CREDIT_CARD'
       ? 'Credit Card'
       : 'Full Payment (UPI / Netbanking)';
-  const paymentLinkUrl = `https://pay.nxtwave.co.in/checkout/${token}`;
+  const paymentLinkUrl = isFullPayment ? fullPaymentInfo.link : `https://pay.nxtwave.co.in/checkout/${token}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(paymentLinkUrl);
@@ -52,10 +55,14 @@ export const PaymentLinkPage: React.FC<PaymentLinkPageProps> = ({
     setTimeout(() => setMobileSent(false), 4000);
   };
 
-  // Direct Pay Securely flow simulating the gateway integration
+  // Direct Pay Securely flow launching official registration link & completing journey
   const handlePayNow = async () => {
     setIsProcessing(true);
     setPaymentError(null);
+
+    if (isFullPayment && fullPaymentInfo.link) {
+      window.open(fullPaymentInfo.link, '_blank', 'noopener,noreferrer');
+    }
 
     try {
       const res = await fetch(`/api/enrollment/${token}/pay/simulate`, {
@@ -63,7 +70,13 @@ export const PaymentLinkPage: React.FC<PaymentLinkPageProps> = ({
       });
       const data = await res.json();
 
-      if (data.payment && data.payment.status === 'SUCCESS') {
+      if (data.success && data.receiptId) {
+        onPaymentSuccess(
+          data.receiptId,
+          data.journey?.program?.amountPayable || amount,
+          new Date().toISOString()
+        );
+      } else if (data.payment && data.payment.status === 'SUCCESS') {
         onPaymentSuccess(
           data.payment.receiptId,
           data.payment.amountPaid,
@@ -146,6 +159,32 @@ export const PaymentLinkPage: React.FC<PaymentLinkPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Official Full Payment Link Banner */}
+        {isFullPayment && (
+          <div className="mb-6 p-4 rounded-xl bg-blue-50/80 border border-blue-200">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                {fullPaymentInfo.label}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold font-mono">
+                Official CCBP Link
+              </span>
+            </div>
+            <div className="text-xs text-blue-800 font-mono break-all mb-3">
+              {fullPaymentInfo.link}
+            </div>
+            <a
+              href={fullPaymentInfo.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0B63E5] hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition cursor-pointer shadow-xs"
+            >
+              <span>Open Registration Payment Page</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        )}
 
         {/* Primary CTA */}
         <button

@@ -17,6 +17,7 @@ import {
   Headphones,
   CheckCircle2,
   Radio,
+  Globe,
 } from 'lucide-react';
 import type { PortalRoute, EnrollmentState } from '../types';
 
@@ -31,6 +32,14 @@ interface StepGuidance {
   keyPoints: string[];
   faqSuggestions: string[];
 }
+
+export const LANG_OPTIONS = [
+  { key: 'English', label: 'English', bcp47: 'en-IN', code: 'en' },
+  { key: 'Telugu', label: 'తెలుగు (Telugu)', bcp47: 'te-IN', code: 'te' },
+  { key: 'Hindi', label: 'हिन्दी (Hindi)', bcp47: 'hi-IN', code: 'hi' },
+  { key: 'Tamil', label: 'தமிழ் (Tamil)', bcp47: 'ta-IN', code: 'ta' },
+  { key: 'Kannada', label: 'ಕನ್ನಡ (Kannada)', bcp47: 'kn-IN', code: 'kn' },
+];
 
 export const VoiceAgent: React.FC<VoiceAgentProps> = ({
   currentRoute,
@@ -49,8 +58,20 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
     { sender: 'user' | 'agent'; text: string }[]
   >([]);
 
+  // Salesforce Preferred_Languages__c sync
+  const crmLanguage = state.learner?.preferredLanguage || 'English';
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(crmLanguage);
+
+  useEffect(() => {
+    if (state.learner?.preferredLanguage) {
+      setSelectedLanguage(state.learner.preferredLanguage);
+    }
+  }, [state.learner?.preferredLanguage]);
+
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speechTimerRef = useRef<NodeJS.Timeout | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
@@ -61,64 +82,121 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
     }
   }, []);
 
-  // Stop current speech
+  // Stop current speech and voice recognition immediately
   const stopSpeech = useCallback(() => {
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current);
+      speechTimerRef.current = null;
+    }
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      } catch {}
+      currentAudioRef.current = null;
+    }
     if (synthRef.current) {
-      synthRef.current.cancel();
+      try {
+        synthRef.current.cancel();
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.pause();
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
     }
     setIsSpeaking(false);
+    setIsListening(false);
   }, []);
 
-  // Play text using browser SpeechSynthesis
+  // Play audio fallback via Google TTS API
+  const playAudioFallback = useCallback(async (textToSpeak: string, langCode: string) => {
+    try {
+      setIsSpeaking(true);
+      const res = await fetch(
+        `/api/voice-guide/tts?text=${encodeURIComponent(textToSpeak.slice(0, 190))}&lang=${encodeURIComponent(langCode)}`
+      );
+      const data = await res.json();
+      if (data.success && data.audioUrl) {
+        const audio = new Audio(data.audioUrl);
+        currentAudioRef.current = audio;
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => setIsSpeaking(false);
+        await audio.play();
+      } else {
+        setIsSpeaking(false);
+      }
+    } catch {
+      setIsSpeaking(false);
+    }
+  }, []);
+
+  // Play text using browser SpeechSynthesis with language support or Google TTS fallback
   const speakText = useCallback(
-    (textToSpeak: string) => {
-      if (!synthRef.current || !textToSpeak) return;
+    (textToSpeak: string, langOverride?: string) => {
+      if (!textToSpeak) return;
 
       stopSpeech();
       setActiveSpeechText(textToSpeak);
 
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      currentUtteranceRef.current = utterance;
+      const targetLang = langOverride || selectedLanguage;
+      const langConfig =
+        LANG_OPTIONS.find((l) => l.key.toLowerCase() === targetLang.toLowerCase()) ||
+        LANG_OPTIONS[0];
 
-      // Select natural voice if available
-      const voices = synthRef.current.getVoices();
-      const preferredVoice =
-        voices.find(
+      // Try browser SpeechSynthesis first
+      if (synthRef.current) {
+        const voices = synthRef.current.getVoices();
+        const matchingVoice = voices.find(
           (v) =>
-            (v.lang.includes('en-IN') || v.lang.includes('en-US')) &&
-            (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Heera'))
-        ) || voices.find((v) => v.lang.startsWith('en')) || voices[0];
+            v.lang.toLowerCase().startsWith(langConfig.code) ||
+            (langConfig.code === 'en' && (v.lang.includes('en-IN') || v.lang.includes('en-US')))
+        );
 
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
+        if (matchingVoice) {
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          currentUtteranceRef.current = utterance;
+          utterance.voice = matchingVoice;
+          utterance.lang = langConfig.bcp47;
+          utterance.rate = 1.0;
+          utterance.pitch = 1.05;
+
+          utterance.onstart = () => setIsSpeaking(true);
+          utterance.onend = () => setIsSpeaking(false);
+          utterance.onerror = () => {
+            setIsSpeaking(false);
+            playAudioFallback(textToSpeak, langConfig.code);
+          };
+
+          synthRef.current.speak(utterance);
+          return;
+        }
       }
-      utterance.rate = 1.0;
-      utterance.pitch = 1.05;
 
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-      };
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-      };
-
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-      };
-
-      synthRef.current.speak(utterance);
+      // High-quality regional voice fallback via Google TTS API
+      playAudioFallback(textToSpeak, langConfig.code);
     },
-    [stopSpeech]
+    [stopSpeech, selectedLanguage, playAudioFallback]
   );
 
-  // Fetch guidance script when step changes
+  // Fetch guidance script when step or selectedLanguage changes
   useEffect(() => {
     let isMounted = true;
 
     const fetchStepGuidance = async () => {
       try {
-        const res = await fetch(`/api/voice-guide/step-script/${currentRoute}`);
+        const queryParams = new URLSearchParams({
+          lang: selectedLanguage,
+          token: state.token || '',
+        });
+        const res = await fetch(`/api/voice-guide/step-script/${currentRoute}?${queryParams.toString()}`);
         const data = await res.json();
         if (isMounted && data.success) {
           setStepData({
@@ -130,9 +208,19 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
 
           // If auto-play is enabled, speak guidance
           if (autoPlayEnabled) {
+            if (speechTimerRef.current) {
+              clearTimeout(speechTimerRef.current);
+            }
             // Small pause for page entrance
-            setTimeout(() => {
-              if (isMounted && autoPlayEnabled) {
+            speechTimerRef.current = setTimeout(() => {
+              // Check if any video or audio is currently playing before starting speech
+              const isMediaPlaying =
+                typeof document !== 'undefined' &&
+                Array.from(document.querySelectorAll('video, audio')).some(
+                  (el) => !(el as HTMLMediaElement).paused
+                );
+
+              if (isMounted && autoPlayEnabled && !isMediaPlaying) {
                 speakText(data.speech);
               }
             }, 500);
@@ -151,7 +239,7 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
       isMounted = false;
       stopSpeech();
     };
-  }, [currentRoute, autoPlayEnabled, speakText, stopSpeech]);
+  }, [currentRoute, autoPlayEnabled, selectedLanguage, state.token, speakText, stopSpeech]);
 
   // Handle Asking Question to AI Guide
   const handleAskQuestion = async (query: string) => {
@@ -169,8 +257,9 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
         body: JSON.stringify({
           step: currentRoute,
           question: query,
-          learnerName: state.learner.name,
-          programName: state.program.name,
+          language: selectedLanguage,
+          learnerName: state.learner?.name || 'Learner',
+          programName: state.program?.name || 'NxtWave Program',
         }),
       });
 
@@ -210,7 +299,11 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
       stopSpeech();
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-      recognition.lang = 'en-IN';
+
+      const langConfig =
+        LANG_OPTIONS.find((l) => l.key.toLowerCase() === selectedLanguage.toLowerCase()) ||
+        LANG_OPTIONS[0];
+      recognition.lang = langConfig.bcp47;
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
@@ -307,6 +400,29 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+
+            {/* Language Selector Bar (from CRM Preferred_Languages__c) */}
+            <div className="px-3.5 py-2 bg-blue-50/90 border-b border-blue-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-900">
+                <Globe className="w-3.5 h-3.5 text-[#0B63E5]" />
+                <span>Voice Language:</span>
+              </div>
+              <select
+                aria-label="Select voice language"
+                value={selectedLanguage}
+                onChange={(e) => {
+                  stopSpeech();
+                  setSelectedLanguage(e.target.value);
+                }}
+                className="text-[11px] font-semibold bg-white text-slate-800 border border-blue-200 rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs cursor-pointer"
+              >
+                {LANG_OPTIONS.map((lang) => (
+                  <option key={lang.key} value={lang.key}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Content Area */}

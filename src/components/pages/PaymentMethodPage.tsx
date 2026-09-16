@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { CreditCard, CalendarDays, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { PaymentMethodType, EnrollmentState } from '../../types';
+import { getFullPaymentInfo } from '../../utils/paymentLinks';
 
 interface PaymentMethodPageProps {
   state: EnrollmentState;
@@ -22,12 +23,15 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const fullPaymentInfo = getFullPaymentInfo(state.program?.name);
+
   const methods = [
     {
       id: 'FULL_PAYMENT' as PaymentMethodType,
       title: 'Full Payment',
       badge: 'Fastest Route',
       description: 'Pay the full program fee in one go via UPI, Netbanking, or Debit Card.',
+      note: `Official Registration Link: ${fullPaymentInfo.link}`,
       icon: (
         <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0B63E5] font-black text-xl">
           ₹
@@ -67,7 +71,7 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
       await fetch(`/api/enrollment/${token}/payment-method`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: selected }),
+        body: JSON.stringify({ method: selected, paymentMethod: selected }),
       });
       onSelectMethod(selected);
     } catch {

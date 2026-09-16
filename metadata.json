@@ -1,6 +1,6 @@
 {
   "name": "NxtWave Learner Enrollment Portal",
-  "description": "Learner-facing NxtWave enrollment portal for program onboarding, authentication, fee review, flexible payment options, and KYC scheduling.",
+  "description": "Salesforce-authoritative NxtWave PRE enrollment portal featuring 2-stage verification, commercial fee clarity, digital KYC, and live NBFC financing status.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

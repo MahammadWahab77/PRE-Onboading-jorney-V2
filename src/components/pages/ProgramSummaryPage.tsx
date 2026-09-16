@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
-  Compass,
-  Code2,
-  Briefcase,
+  Award,
+  CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Video,
-  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  Tag,
+  BookOpen,
   Sparkles,
+  Layers,
+  GraduationCap,
 } from 'lucide-react';
 import type { EnrollmentState } from '../../types';
 import { ProgramCurriculumVideoPlayer } from '../ProgramCurriculumVideoPlayer';
@@ -25,169 +29,222 @@ export const ProgramSummaryPage: React.FC<ProgramSummaryPageProps> = ({
   onBack,
 }) => {
   const prefersReducedMotion = useReducedMotion();
-  const programName = state.program.name || 'Genius';
-  const feeAmount = state.program.amountPayable || 100000;
-  const formattedFee = `₹${feeAmount.toLocaleString('en-IN')}`;
+  const [showCurriculumVideo, setShowCurriculumVideo] = useState(false);
 
-  const benefits = [
-    {
-      icon: Compass,
-      title: 'Structured Learning',
-      description: 'Guided learning journey with clear milestones.',
-      colorClass: 'text-blue-600 bg-blue-50 border-blue-100',
-    },
-    {
-      icon: Code2,
-      title: 'Hands-on Projects',
-      description: 'Build practical skills through project-based learning.',
-      colorClass: 'text-indigo-600 bg-indigo-50 border-indigo-100',
-    },
-    {
-      icon: Briefcase,
-      title: 'Career Support',
-      description: 'Career preparation support throughout the journey.',
-      colorClass: 'text-sky-600 bg-sky-50 border-sky-100',
-    },
-  ];
+  // Commercial Pricing Data mapped directly to Salesforce fields:
+  // 1. Product_Price__c -> baseFee (full amount: ₹3,00,000)
+  // 2. Payment_Plan_Discount__c -> scholarshipAmount (discount: ₹50,000)
+  // 3. Amount_to_be_Receive__c -> amountToBeReceived (total to be paid by user: ₹2,50,000)
+  // 4. Total_Amount_PRE__c -> seatReservationPaid (seat reservation paid till now: ₹18,000)
+  // 5. Remaining_Amount_To_Be_Paid_PRE__c -> netRemainingPayable (remaining balance: ₹2,32,000)
+  const baseFee =
+    state?.program?.baseFee ||
+    state?.canonicalJourney?.program?.baseFee ||
+    180000;
+
+  const amountToBeReceived =
+    state?.program?.amountToBeReceived ||
+    state?.program?.amountPayable ||
+    state?.canonicalJourney?.program?.amountToBeReceived ||
+    state?.canonicalJourney?.program?.amountPayable ||
+    250000;
+
+  const scholarshipAmount =
+    state?.program?.scholarshipAmount && state.program.scholarshipAmount > 0
+      ? state.program.scholarshipAmount
+      : state?.canonicalJourney?.program?.scholarshipAmount && state.canonicalJourney.program.scholarshipAmount > 0
+      ? state.canonicalJourney.program.scholarshipAmount
+      : baseFee > amountToBeReceived
+      ? baseFee - amountToBeReceived
+      : 50000;
+
+  const seatReservationPaid =
+    state?.program?.seatReservationPaid ??
+    state?.canonicalJourney?.program?.seatReservationPaid ??
+    0;
+
+  const netRemainingPayable =
+    state?.program?.remainingAmountPayable ??
+    state?.canonicalJourney?.program?.remainingAmountPayable ??
+    32000;
+
+  const programTitle = state?.program?.name || 'NxtWave Smart Program';
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 py-8 sm:py-12">
+    <div className="w-full max-w-2xl mx-auto px-4 py-8 sm:py-12">
       <motion.div
         initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
         className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-6 sm:p-8"
       >
-        {/* Header section */}
-        <div className="mb-6">
-          <span className="text-xs font-bold text-[#0B63E5] uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-            Selected Curriculum
+        {/* Top Header Badge */}
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-bold text-[#0B63E5] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+            Admissions & Commercial Commitment
           </span>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#0A192F] tracking-tight mt-2.5 mb-1.5">
-            Your selected program
-          </h1>
-          <p className="text-lg font-semibold text-[#0B63E5]">
-            NxtWave {programName}
-          </p>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Seat Reserved</span>
+          </div>
         </div>
 
-        {/* EMBEDDED CURRICULUM VIDEO EXPLAINER */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <Video className="w-4 h-4 text-[#0B63E5]" />
-              <span>Program Explainer Video • ఎందుకు NxtWave కాలేజీ కంటే భిన్నమైనది?</span>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#0A192F] tracking-tight mb-2">
+          {programTitle} Program Details
+        </h1>
+        <p className="text-sm text-slate-600 leading-relaxed mb-6">
+          Transparent fee summary and scholarship breakdown for your confirmed cohort enrollment.
+        </p>
+
+        {/* PRIMARY FOCUS: COMMERCIAL FEE & SCHOLARSHIP BREAKDOWN */}
+        <div className="bg-[#F8FAFC] border-2 border-[#E2E8F0] rounded-2xl p-5 sm:p-6 mb-8 shadow-xs">
+          <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-200">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Fee Item
             </span>
-            <span className="text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-              1 min 11 sec
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Amount (INR)
             </span>
           </div>
 
-          <ProgramCurriculumVideoPlayer />
-
-          {/* Key Highlights from the Video */}
-          <div className="p-4 rounded-xl bg-[#F0F6FF] border border-[#D0E2FF] text-xs text-slate-700 space-y-2 mt-3.5">
+          <div className="space-y-3 text-sm">
+            {/* 1. Base Program Fee */}
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[#0A192F] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#0B63E5]" />
-                <span>Key Highlights From This Video:</span>
+              <span className="text-slate-700 font-medium flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-slate-400" />
+                <span>Program Fee (Full Cost)</span>
               </span>
-              <span className="text-[10px] text-blue-700 font-semibold bg-blue-100/70 px-2 py-0.5 rounded-full">
-                Genius Advantage
+              <span className="font-mono font-semibold text-slate-900">
+                ₹{baseFee.toLocaleString('en-IN')}
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700">
-              <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>Reverse-Engineered</strong> by Amazon & top tech leads</span>
+
+            {/* 2. Merit Scholarship */}
+            <div className="flex items-center justify-between text-emerald-700">
+              <span className="font-medium flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-600" />
+                <span>Merit Scholarship Applied</span>
+              </span>
+              <span className="font-mono font-semibold">
+                -₹{scholarshipAmount.toLocaleString('en-IN')}
+              </span>
+            </div>
+
+            {/* Subtotal: Total Amount to be Paid by User */}
+            <div className="flex items-center justify-between py-2 px-3 bg-[#0B63E5]/5 rounded-xl border border-blue-200/80 text-blue-900 font-semibold text-xs">
+              <span>Total Program Fee (After Scholarship)</span>
+              <span className="font-mono font-bold text-sm text-[#0B63E5]">
+                ₹{amountToBeReceived.toLocaleString('en-IN')}
+              </span>
+            </div>
+
+            {/* 3. Seat Reservation Fee Paid */}
+            {seatReservationPaid > 0 && (
+              <div className="flex items-center justify-between text-emerald-700 pt-1">
+                <span className="font-medium flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Seat Reservation Fee (Paid Till Now)</span>
+                </span>
+                <span className="font-mono font-semibold">
+                  -₹{seatReservationPaid.toLocaleString('en-IN')}
+                </span>
               </div>
-              <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>Real-World Apps</strong>: Build live projects like Zomato clone</span>
+            )}
+
+            {/* Divider Line */}
+            <div className="pt-3 border-t-2 border-slate-300/80" />
+
+            {/* 4. Net Remaining Balance Payable */}
+            <div className="flex items-center justify-between pt-1 text-base sm:text-lg">
+              <div>
+                <span className="font-bold text-[#0A192F] block">Net Remaining Amount Payable</span>
+                <span className="text-xs text-slate-500 font-normal">
+                  All inclusive • zero hidden charges
+                </span>
               </div>
-              <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>Non-Tech Friendly</strong>: Zero coding background needed</span>
+              <span className="font-mono font-bold text-2xl text-[#0B63E5]">
+                ₹{netRemainingPayable.toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* PROGRAM HIGHLIGHTS GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+          <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-start gap-2.5">
+              <Award className="w-4 h-4 text-[#0B63E5] shrink-0 mt-0.5" />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  Industry-Ready Certification
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  NSDC-aligned curriculum co-designed by leading tech architects.
+                </span>
               </div>
-              <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>Govt. NSDC Certified</strong>: India's 1st Industry-Ready credential</span>
-              </div>
-              <div className="flex items-start gap-1.5 sm:col-span-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>Unlimited Interview Access</strong>: 3,000+ hiring companies until placed</span>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-start gap-2.5">
+              <BookOpen className="w-4 h-4 text-[#0B63E5] shrink-0 mt-0.5" />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  Live Mentorship & Placement
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Dedicated mock interviews, resume feedback, and placement drives.
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 3 Benefit Cards */}
-        <div className="space-y-3.5 mb-8">
-          {benefits.map((b, idx) => {
-            const Icon = b.icon;
-            return (
-              <div
-                key={idx}
-                className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-start gap-3.5"
-              >
-                <div
-                  className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${b.colorClass}`}
-                >
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#0A192F] mb-0.5">
-                    {b.title}
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {b.description}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Program Fee Card (Learner sees fee before payment selection) */}
-        <div className="bg-[#F4F8FF] border border-[#D6E4FA] rounded-2xl p-5 mb-8 flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Program Fee
-            </span>
-            <div className="text-2xl sm:text-3xl font-black text-[#0A192F] tracking-tight mt-0.5">
-              {formattedFee}
+        {/* SECONDARY: CURRICULUM VIDEO EXPLAINER (ACCORDION / TOGGLE) */}
+        <div className="mb-8 border border-slate-200 rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowCurriculumVideo((prev) => !prev)}
+            className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#0B63E5]" />
+              <span>Curriculum & Program Video Overview (Optional)</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              All inclusive • Full access to curriculum & mentor support
-            </p>
-          </div>
-          <div className="hidden sm:block text-right">
-            <span className="inline-flex items-center text-xs font-semibold text-blue-700 bg-blue-100/70 px-2.5 py-1 rounded-full">
-              Flexible Plans Available
-            </span>
-          </div>
+            {showCurriculumVideo ? (
+              <ChevronUp className="w-4 h-4 text-slate-500" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-500" />
+            )}
+          </button>
+
+          {showCurriculumVideo && (
+            <div className="p-4 bg-white border-t border-slate-200">
+              <ProgramCurriculumVideoPlayer />
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-5 border-t border-slate-100">
           <button
-            id="choose-payment-method-btn"
+            id="program-back-btn"
             type="button"
-            onClick={onNext}
-            className="w-full sm:flex-1 py-3.5 px-6 rounded-xl text-sm font-semibold text-white bg-[#0B63E5] hover:bg-[#0047BA] active:scale-[0.99] shadow-sm shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            onClick={onBack}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <span>Choose Payment Method</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
           </button>
 
           <button
-            id="back-to-congratulations-btn"
+            id="program-continue-btn"
             type="button"
-            onClick={onBack}
-            className="w-full sm:w-auto py-3 px-4 rounded-xl text-xs font-semibold text-slate-600 hover:text-[#0A192F] hover:bg-slate-100 transition-colors flex items-center justify-center gap-1.5"
+            onClick={onNext}
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#0B63E5] text-white text-xs sm:text-sm font-semibold hover:bg-blue-600 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back</span>
+            <span>Choose Payment Method</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </motion.div>
